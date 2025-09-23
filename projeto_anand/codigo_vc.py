@@ -1,27 +1,25 @@
 import cv2
-import numpy as np
 import socket
-import requests
 
 # Configuração UDP
-UDP_IP = "172.20.10.2"   # IP do ESP32
-UDP_PORT = 4210          # Porta que o ESP32 vai escutar
+UDP_IP = "172.20.10.2"   
+UDP_PORT = 4210         
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
-# URL da câmera do ESP32-CAM
-ESP32_URL = "http://172.20.10.2/capture"
+# URL do stream MJPEG do ESP32-CAM
+STREAM_URL = "http://172.20.10.2:81/stream"
 
-# 🔥 Cria uma sessão persistente
-session = requests.Session()
+# Inicializa VideoCapture
+cap = cv2.VideoCapture(STREAM_URL)
+if not cap.isOpened():
+    print("Erro ao conectar ao stream da câmera")
+    exit()
 
 while True:
     try:
-        # captura um frame do ESP32-CAM usando a sessão
-        resp = session.get(ESP32_URL, timeout=0.5)
-        img_arr = np.asarray(bytearray(resp.content), dtype=np.uint8)
-        frame = cv2.imdecode(img_arr, cv2.IMREAD_COLOR)
+        ret, frame = cap.read()
 
-        if frame is None:
+        if not ret:
             continue
 
         # reduz resolução
@@ -82,4 +80,5 @@ while True:
     except Exception as e:
         print("Erro:", e)
 
+cap.release()
 cv2.destroyAllWindows()
