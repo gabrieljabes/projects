@@ -2,15 +2,15 @@ import cv2
 import socket
 
 # Configuração UDP
-UDP_IP = "172.20.10.2"   
-UDP_PORT = 4210         
+ip = "172.20.10.2"   
+porta = 4210         
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 # URL do stream MJPEG do ESP32-CAM
-STREAM_URL = "http://172.20.10.2:81/stream"
+url = "http://172.20.10.2:81/stream"
 
 # Inicializa VideoCapture
-cap = cv2.VideoCapture(STREAM_URL)
+cap = cv2.VideoCapture(url)
 if not cap.isOpened():
     print("Erro ao conectar ao stream da câmera")
     exit()
@@ -22,19 +22,19 @@ while True:
         if not ret:
             continue
 
-        # reduz resolução
+        # diminui a resolução
         frame_resized = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
         height, width, _ = frame_resized.shape
         region_width = width // 5  # 5 regiões
 
-        # processa imagem
+        # aplica os filtros
         gray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         _, thresh = cv2.threshold(blurred, 220, 255, cv2.THRESH_BINARY)
 
         contorno, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # regiões: começam "acesas"
+        # definição das regiões (ja começa aceso)
         regions = {
             "FARLEFT": True,
             "LEFT": True,
@@ -62,7 +62,7 @@ while True:
         msgs_enviadas = []
         for regiao, estado in regions.items():
             msg = f"{regiao}{'ON' if estado else 'OFF'}"
-            sock.sendto(msg.encode(), (UDP_IP, UDP_PORT))
+            sock.sendto(msg.encode(), (ip, porta))
             msgs_enviadas.append(msg)
 
         print("Enviado:", msgs_enviadas)
