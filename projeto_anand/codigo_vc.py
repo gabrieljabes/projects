@@ -1,18 +1,18 @@
 import cv2
 import socket
 
-# Configuração UDP
+# configuração e porta udp
 ip = "172.20.10.2"   
 porta = 4210         
-sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM) 
 
-# URL do stream MJPEG do ESP32-CAM
+# url do esp
 url = "http://172.20.10.2:81/stream"
 
-# Inicializa VideoCapture
+# captura de vídeo
 cap = cv2.VideoCapture(url)
 if not cap.isOpened():
-    print("Erro ao conectar ao stream da câmera")
+    print("erro ao conectar")
     exit()
 
 while True:
@@ -22,45 +22,57 @@ while True:
         if not ret:
             continue
 
-        # diminui a resolução
-        frame_resized = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)
-        height, width, _ = frame_resized.shape
-        region_width = width // 5  # 5 regiões
+        # manipulação da resolução e obtenção das informações
+        # definição da largura de cada regiao (são 5)
+        frame_resized = cv2.resize(frame, (0, 0), fx=0.5, fy=0.5)   
+        altura, largura, _ = frame_resized.shape  
+    largura_regiao = largura // 5   
 
         # aplica os filtros
         gray = cv2.cvtColor(frame_resized, cv2.COLOR_BGR2GRAY)
         blurred = cv2.GaussianBlur(gray, (5, 5), 0)
         _, thresh = cv2.threshold(blurred, 220, 255, cv2.THRESH_BINARY)
 
+        #define contorno 
         contorno, _ = cv2.findContours(thresh, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
 
-        # definição das regiões (ja começa aceso)
-        regions = {
-            "FARLEFT": True,
-            "LEFT": True,
-            "CENTER": True,
-            "RIGHT": True,
-            "FARRIGHT": True
-        }
+        # definiçao das regioes pra 
+            regioes = {
+                "FARLEFT": True,
+                "LEFT": True,
+                "CENTER": True,
+                "RIGHT": True,
+                "FARRIGHT": True
+            }
 
         for cnt in contorno:
             x, y, w, h = cv2.boundingRect(cnt)
             if w * h > 30:  # descarta ruído
                 cx = x + w // 2
-                if cx < region_width:
-                    regions["FARLEFT"] = False
-                elif cx < 2 * region_width:
-                    regions["LEFT"] = False
-                elif cx < 3 * region_width:
-                    regions["CENTER"] = False
-                elif cx < 4 * region_width:
-                    regions["RIGHT"] = False
+                if cx < largura_regiao:
+                    regioes["FARLEFT"] = False
+                elif cx < 2 * largura_regiao:
+                    regioes["LEFT"] = False
+                elif cx < 3 * largura_regiao:
+                    regioes["CENTER"] = False
+                elif cx < 4 * largura_regiao:
+                    regioes["RIGHT"] = False
                 else:
-                    regions["FARRIGHT"] = False
+                    regioes["FARRIGHT"] = False
+                if cx < largura_regiao:
+                    regioes["FARLEFT"] = False
+                elif cx < 2 * largura_regiao:
+                    regioes["LEFT"] = False
+                elif cx < 3 * largura_regiao:
+                    regioes["CENTER"] = False
+                elif cx < 4 * largura_regiao:
+                    regioes["RIGHT"] = False
+                else:
+                    regioes["FARRIGHT"] = False
 
         # envia estado pro ESP via UDP + log
         msgs_enviadas = []
-        for regiao, estado in regions.items():
+        for regiao, estado in regioes.items():
             msg = f"{regiao}{'ON' if estado else 'OFF'}"
             sock.sendto(msg.encode(), (ip, porta))
             msgs_enviadas.append(msg)
@@ -69,7 +81,7 @@ while True:
 
         # desenha divisões
         for i in range(1, 5):
-            cv2.line(frame_resized, (i * region_width, 0), (i * region_width, height), (255, 0, 0), 2)
+            cv2.line(frame_resized, (i * largura_regiao, 0), (i * largura_regiao, altura), (255, 0, 0), 2)
 
         cv2.imshow("Frame", frame_resized)
         cv2.imshow("Bright Spots", thresh)
